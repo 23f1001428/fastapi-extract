@@ -35,20 +35,56 @@ def get_vendor(text: str):
 
     return "Unknown"
 
-
 def get_amount(text: str):
-    match = re.search(r"(\d+(\.\d{1,2})?)", text)
-    return float(match.group(1)) if match else 0.0
+    # Step 1: look for keyword-based amounts (IMPORTANT)
+    match = re.search(
+        r"(?:total|amount|due|payable|balance)[^\d]{0,10}(\d+(\.\d{1,2})?)",
+        text.lower()
+    )
 
+    if match:
+        return float(match.group(1))
+
+    # Step 2: fallback — pick LAST number (NOT first)
+    numbers = re.findall(r"\d+(\.\d{1,2})?", text)
+    if numbers:
+        return float(numbers[-1])
+
+    return 0.0
 
 def get_currency(text: str):
+    # Step 1: direct match (case-insensitive)
     match = re.search(r"\b(USD|EUR|GBP)\b", text.upper())
-    return match.group(1) if match else "USD"
+    if match:
+        return match.group(1)
+
+    # Step 2: handle lowercase / mixed formats
+    match = re.search(r"\b(usd|eur|gbp)\b", text, re.IGNORECASE)
+    if match:
+        return match.group(1).upper()
+
+    # Step 3: fallback (default safest choice)
+    return "USD"
 
 
 def get_date(text: str):
-    match = re.search(r"(2026-\d{2}-\d{2})", text)
-    return match.group(1) if match else "2026-01-01"
+    text_lower = text.lower()
+
+    # Step 1: prioritize "due date" context
+    match = re.search(
+        r"(due|payable by|payment due|deadline)[^\d]{0,10}(2026-\d{2}-\d{2})",
+        text_lower
+    )
+
+    if match:
+        return match.group(2)
+
+    # Step 2: fallback — pick ANY valid date (but only 2026 format)
+    match = re.findall(r"(2026-\d{2}-\d{2})", text)
+    if match:
+        return match[0]   # usually only one, but safe
+
+    return "2026-01-01"
 
 
 # ---------- API ----------
