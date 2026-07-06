@@ -18,8 +18,22 @@ class ExtractResponse(BaseModel):
 
 # ---------- Extract helpers ----------
 def get_vendor(text: str):
-    match = re.search(r"([A-Z][A-Za-z0-9\-\s&]+(Ltd\.|Inc\.|Industries|Corp\.|LLC)?)", text)
-    return match.group(1).strip() if match else "Unknown"
+    # Step 1: prioritize real company-like patterns first
+    match = re.search(
+        r"(Acme-[A-Za-z0-9\-]+[A-Za-z0-9\s&]*|[A-Z][A-Za-z0-9\-\s&]+(Ltd\.|Inc\.|Industries|Corp\.|LLC))",
+        text
+    )
+
+    if match:
+        return match.group(1).strip()
+
+    # Step 2: fallback (avoid generic words like "Invoice")
+    words = text.split()
+    for i in range(len(words)):
+        if words[i].istitle() and words[i].lower() not in ["invoice", "bill", "receipt"]:
+            return words[i]
+
+    return "Unknown"
 
 
 def get_amount(text: str):
